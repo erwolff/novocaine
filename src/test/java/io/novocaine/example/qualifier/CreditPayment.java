@@ -1,8 +1,10 @@
 package io.novocaine.example.qualifier;
 
+import javax.inject.Qualifier;
+import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-@java.lang.annotation.Retention(RetentionPolicy.RUNTIME)
-@javax.inject.Qualifier
+@Retention(RetentionPolicy.RUNTIME)
+@Qualifier
 public @interface CreditPayment {
 }
