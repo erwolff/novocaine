@@ -1,0 +1,9 @@
+# Intelij ignores
+.idea/
+*.iml
+
+# Build ignores
+target/
+
+# OSX ignores
+.DS_Store
