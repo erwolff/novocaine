@@ -51,14 +51,11 @@ public class Novocaine {
 
         reflections = new Reflections("", new SubTypesScanner(false), new TypeAnnotationsScanner());
 
-        // resolve the path of the supplied class
-        String path = topLevel.getClass().getPackage().getName();
-
         // find and resolve all @Qualifier and @Named annotations
-        NovocaineHelper.findQualifierAnnotations(path);
-        NovocaineHelper.findNamedAnnotations(path);
+        NovocaineHelper.findQualifierAnnotations();
+        NovocaineHelper.findNamedAnnotations();
 
-        // next retrieve all classes in the path
+        // next retrieve all classes
         Set<Class<?>> classes = reflections.getSubTypesOf(Object.class);
 
         // "seen" will represent classes we have already instantiated during a recursive call - if we come across an

@@ -27,11 +27,9 @@ class NovocaineHelper {
 
     /**
      * Locates all annotations marked with with @Qualifier and determines which concrete implementation to associate
-     *
-     * @param path - the path to scan for @Qualifier
      */
     @SuppressWarnings("unchecked")
-    static void findQualifierAnnotations(@Nonnull String path) {
+    static void findQualifierAnnotations() {
         // retrieve all types marked with @Qualifier
         Set<Class<?>> qualifiers = Novocaine.reflections.getTypesAnnotatedWith(Qualifier.class, true);
 
@@ -59,10 +57,8 @@ class NovocaineHelper {
 
     /**
      * Locates all classes marked with with @Named and stores the value to concrete implementation class association
-     *
-     * @param path - the path to scan for @Named
      */
-    static void findNamedAnnotations(@Nonnull String path) {
+    static void findNamedAnnotations() {
         // retrieve all types marked with @Named
         Set<Class<?>> namedClasses = Novocaine.reflections.getTypesAnnotatedWith(Named.class, true);
 
