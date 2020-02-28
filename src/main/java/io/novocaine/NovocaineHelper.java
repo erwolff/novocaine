@@ -26,6 +26,16 @@ class NovocaineHelper {
     static Map<String, Class<?>> namedAnnotationMap = new ConcurrentHashMap<>();
 
     /**
+     * Set containing all classes which have methods marked with @Singleton
+     */
+    static Set<Class<?>> supplierClasses = new HashSet<>();
+
+    /**
+     * Set containing all classes which are provided by methods marked with @Singleton
+     */
+    static Set<Class<?>> suppliedClasses = new HashSet<>();
+
+    /**
      * Locates all annotations marked with with @Qualifier and determines which concrete implementation to associate
      */
     @SuppressWarnings("unchecked")
@@ -73,6 +83,27 @@ class NovocaineHelper {
 
             // store the annotation to its implementing class
             namedAnnotationMap.put(key, namedClass);
+        }
+    }
+
+    /**
+     * Invokes each method annotated with @Singleton in the class in order to instantiate provided classes
+     *
+     * @param clazz - the class which may or may not contain methods marked with @Singleton
+     * @param seen - the set of classes which have already been seen while checking for cyclic dependencies
+     * @param topLevel - the top level class which called Novocaine.inject(this)
+     */
+    static void instantiateSuppliedClasses(@Nonnull Class<?> clazz, @Nonnull Set<Class<?>> seen, @Nonnull Object topLevel) {
+        // populate the set of classes which are supplied by suppliers
+        for (Method method: clazz.getMethods()) {
+            if (method.getAnnotation(Singleton.class) != null && method.getReturnType() != null) {
+                supplierClasses.add(clazz);
+                suppliedClasses.add(method.getReturnType());
+            }
+        }
+        if (supplierClasses.contains(clazz)) {
+            // instantiate objects provided by methods marked with @Singleton in this class
+            instantiateMethodSingletons(clazz, seen, topLevel);
         }
     }
 
@@ -203,6 +234,23 @@ class NovocaineHelper {
         }
     }
 
+    private static void instantiateMethodSingletons(@Nonnull Class<?> clazz, @Nonnull Set<Class<?>> seen, @Nonnull Object topLevel) {
+        // iterate over each method in this class
+        for (Method method : clazz.getMethods()) {
+            // check if this method is marked with @Singleton
+            if (method.getAnnotation(Singleton.class) != null && Novocaine.injectableProvider.get(method.getReturnType()) == null) {
+                // resolve all arguments required by this method (checking for cyclic dependencies along the way)
+                List<Object> args = resolveArgs(method.getParameters(), method.getParameterAnnotations(), seen, topLevel);
+
+                // invoke the method with the resolved args
+                Object o = invokeMethod(method, args, topLevel);
+                if (o != null) {
+                    Novocaine.injectableProvider.put(method.getReturnType(), o);
+                }
+            }
+        }
+    }
+
     /**
      * Resolves and instantiates the parameters required for this constructor or method to be invoked
      *
@@ -236,9 +284,35 @@ class NovocaineHelper {
             if (seen.contains(type)) {
                 throw new RuntimeException("Circular Dependency Detected: " + type.getName());
             }
-            checkCyclicDependenciesAndInject(type, seen, topLevel);
+            else if (suppliedClasses.contains(type)) {
+                instantiateFromSupplier(type, seen, topLevel);
+            }
+            else {
+                checkCyclicDependenciesAndInject(type, seen, topLevel);
+            }
         }
         return Novocaine.injectableProvider.get(type);
+    }
+
+    private static void instantiateFromSupplier(Class<?> type, Set<Class<?>> seen, Object topLevel) {
+        for (Class<?> supplierClass : supplierClasses) {
+            for (Method method : supplierClass.getMethods()) {
+                if (method.getAnnotation(Singleton.class) != null && method.getReturnType() == type) {
+                    if (!Novocaine.injectableProvider.containsKey(type)) {
+                        seen.add(type);
+                        // resolve all arguments required by this method (checking for cyclic dependencies along the way)
+                        List<Object> args = resolveArgs(method.getParameters(), method.getParameterAnnotations(), seen, topLevel);
+
+                        // invoke the method with the resolved args
+                        Object o = invokeMethod(method, args, topLevel);
+                        if (o != null) {
+                            Novocaine.injectableProvider.put(method.getReturnType(), o);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -334,18 +408,18 @@ class NovocaineHelper {
      * @param args - the arguments to provide to the method during invocation
      * @param topLevel - the top level class which called Novocaine.inject(this)
      */
-    private static void invokeMethod(@Nonnull Method method, @Nonnull List<Object> args, @Nonnull Object topLevel) {
+    private static Object invokeMethod(@Nonnull Method method, @Nonnull List<Object> args, @Nonnull Object topLevel) {
         if (!method.isAccessible()) {
             method.setAccessible(true);
         }
         try {
             Class<?> clazz = method.getDeclaringClass();
             if (clazz == topLevel.getClass()) {
-                method.invoke(topLevel, args.toArray());
+                return method.invoke(topLevel, args.toArray());
             }
             else {
                 instantiateClass(clazz);
-                method.invoke(Novocaine.injectableProvider.get(clazz), args.toArray());
+                return method.invoke(Novocaine.injectableProvider.get(clazz), args.toArray());
             }
         } catch (Exception e) {
             throw new RuntimeException("Cannot invoke method: " + method.getName() + " on class: " + method.getDeclaringClass().getName(), e);

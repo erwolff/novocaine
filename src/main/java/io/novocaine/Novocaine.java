@@ -62,6 +62,9 @@ public class Novocaine {
         // already seen class, then we know there's a cyclic dependency and we must throw an exception
         Set<Class<?>> seen = new HashSet<>();
 
+        // iterate over each method annotated with @Singleton in each class and invoke the method to instantiate the provided classes
+        classes.forEach(clazz -> NovocaineHelper.instantiateSuppliedClasses(clazz, seen, topLevel));
+
         // iterate over each class, check for cyclic dependencies, and instantiate/inject all @Singletons
         classes.forEach(clazz -> NovocaineHelper.checkCyclicDependenciesAndInject(clazz, seen, topLevel));
 

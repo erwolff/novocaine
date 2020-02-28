@@ -133,6 +133,15 @@ public class NovocaineHelperTest {
         assertNotNull(methodInjectionService.getSecondDebitPayment());
     }
 
+    @Test
+    public void test_methodSingletonInstantiation() {
+        UserOfProviderService userOfProviderService = Novocaine.get(UserOfProviderService.class);
+        assertNotNull(userOfProviderService);
+        assertNotNull(userOfProviderService.getProviderService());
+        assertNotNull(userOfProviderService.getSecondProvidedService());
+        assertNotNull(userOfProviderService.getSecondProvidedService().getProvidedService());
+    }
+
 
     /**
      * Recursive Injection Tests
