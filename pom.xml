@@ -6,7 +6,7 @@
 
     <groupId>io.novocaine</groupId>
     <artifactId>novocaine</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.3</version>
 
     <distributionManagement>
         <repository>

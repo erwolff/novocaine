@@ -36,6 +36,11 @@ class NovocaineHelper {
     static Set<Class<?>> suppliedClasses = new HashSet<>();
 
     /**
+     * Map containing the @Named annotation toString() to the instantiated object for supplied methods
+     */
+    static Map<String, Object> suppliedNamedAnnotationMap = new ConcurrentHashMap<>();
+
+    /**
      * Locates all annotations marked with with @Qualifier and determines which concrete implementation to associate
      */
     @SuppressWarnings("unchecked")
@@ -96,10 +101,15 @@ class NovocaineHelper {
     static void instantiateSuppliedClasses(@Nonnull Class<?> clazz, @Nonnull Set<Class<?>> seen, @Nonnull Object topLevel) {
         // populate the set of classes which are supplied by suppliers
         for (Method method: clazz.getMethods()) {
-            if (method.getAnnotation(Singleton.class) != null && method.getReturnType() != null) {
-                supplierClasses.add(clazz);
-                suppliedClasses.add(method.getReturnType());
+            if (method.getReturnType() != null) {
+                if (method.getAnnotation(Singleton.class) != null) {
+                    supplierClasses.add(clazz);
+                    if (method.getAnnotation(Named.class) == null) {
+                        suppliedClasses.add(method.getReturnType());
+                    }
+                }
             }
+
         }
         if (supplierClasses.contains(clazz)) {
             // instantiate objects provided by methods marked with @Singleton in this class
@@ -146,23 +156,28 @@ class NovocaineHelper {
         for (Field field : clazz.getDeclaredFields()) {
             // check if the field is marked with @Inject
             if (field.getAnnotation(Inject.class) != null) {
-                // determine the type of field this is (if interface, determine the concrete implementation)
-                Class<?> type = determineType(field);
-                // check if we've already instantiated this type
-                if (Novocaine.injectableProvider.containsKey(type)) {
-                    // we've already instantiated this type - just set the field to its instantiation
-                    setField(field, type, topLevel);
+                if (field.getAnnotation(Named.class) != null && suppliedNamedAnnotationMap.containsKey(field.getAnnotation(Named.class).toString())) {
+                    setField(field, suppliedNamedAnnotationMap.get(field.getAnnotation(Named.class).toString()), topLevel);
                 }
                 else {
-                    // check if we've already seen this type - if so, this is a circular dependency
-                    if (seen.contains(type))
-                        throw new RuntimeException("Circular Dependency Detected: " + type.getName());
+                    // determine the type of field this is (if interface, determine the concrete implementation)
+                    Class<?> type = determineType(field);
+                    // check if we've already instantiated this type
+                    if (Novocaine.injectableProvider.containsKey(type)) {
+                        // we've already instantiated this type - just set the field to its instantiation
+                        setField(field, type, topLevel);
+                    }
+                    else {
+                        // check if we've already seen this type - if so, this is a circular dependency
+                        if (seen.contains(type))
+                            throw new RuntimeException("Circular Dependency Detected: " + type.getName());
 
-                    // recursively check for cyclic dependencies of classes used by this one
-                    checkCyclicDependenciesAndInject(type, seen, topLevel);
+                        // recursively check for cyclic dependencies of classes used by this one
+                        checkCyclicDependenciesAndInject(type, seen, topLevel);
 
-                    // all classes used by this class have been resolved - set the field with the fully instantiated object
-                    setField(field, type, topLevel);
+                        // all classes used by this class have been resolved - set the field with the fully instantiated object
+                        setField(field, type, topLevel);
+                    }
                 }
             }
         }
@@ -209,26 +224,39 @@ class NovocaineHelper {
         for (Method method : clazz.getMethods()) {
             // check if this method is marked with @Inject
             if (method.getAnnotation(Inject.class) != null) {
-                // check to see if the method itself is annotated with @Named or one of the @Qualifier annotations
-                Class<?> type = resolveAnnotationsToType(method.getAnnotations()).orElse(null);
-                if (type != null) {
-                    // the method is annotated, it MUST only have one parameter:
+                if (method.getAnnotation(Named.class) != null && suppliedNamedAnnotationMap.containsKey(method.getAnnotation(Named.class).toString())) {
                     if (method.getParameterCount() != 1) {
                         throw new RuntimeException("Method " + clazz.getName() + "#" + method.getName()
-                                + " requires " + method.getParameterCount() + " parameters but is annotated with @Named or a @Qualifier-associated annotation");
+                                + " requires " + method.getParameterCount() + " parameters but is annotated with @Named");
                     }
                     // resolve the single parameter (checking for cyclic dependencies)
-                    List<Object> args = Collections.singletonList(resolveArg(type, seen, topLevel));
+                    List<Object> args = Collections.singletonList(suppliedNamedAnnotationMap.get(method.getAnnotation(Named.class).toString()));
 
                     // invoke this setter with the resolved arg
                     invokeMethod(method, args, topLevel);
                 }
                 else {
-                    // resolve all arguments required by this method (checking for cyclic dependencies along the way)
-                    List<Object> args = resolveArgs(method.getParameters(), method.getParameterAnnotations(), seen, topLevel);
+                    // check to see if the method itself is annotated with @Named or one of the @Qualifier annotations
+                    Class<?> type = resolveAnnotationsToType(method.getAnnotations()).orElse(null);
+                    if (type != null) {
+                        // the method is annotated, it MUST only have one parameter:
+                        if (method.getParameterCount() != 1) {
+                            throw new RuntimeException("Method " + clazz.getName() + "#" + method.getName()
+                                    + " requires " + method.getParameterCount() + " parameters but is annotated with @Named or a @Qualifier-associated annotation");
+                        }
+                        // resolve the single parameter (checking for cyclic dependencies)
+                        List<Object> args = Collections.singletonList(resolveArg(type, seen, topLevel));
 
-                    // invoke the setter with the resolved args
-                    invokeMethod(method, args, topLevel);
+                        // invoke this setter with the resolved arg
+                        invokeMethod(method, args, topLevel);
+                    }
+                    else {
+                        // resolve all arguments required by this method (checking for cyclic dependencies along the way)
+                        List<Object> args = resolveArgs(method.getParameters(), method.getParameterAnnotations(), seen, topLevel);
+
+                        // invoke the setter with the resolved args
+                        invokeMethod(method, args, topLevel);
+                    }
                 }
             }
         }
@@ -238,14 +266,28 @@ class NovocaineHelper {
         // iterate over each method in this class
         for (Method method : clazz.getMethods()) {
             // check if this method is marked with @Singleton
-            if (method.getAnnotation(Singleton.class) != null && Novocaine.injectableProvider.get(method.getReturnType()) == null) {
-                // resolve all arguments required by this method (checking for cyclic dependencies along the way)
-                List<Object> args = resolveArgs(method.getParameters(), method.getParameterAnnotations(), seen, topLevel);
+            if (method.getAnnotation(Singleton.class) != null) {
+                if (method.getAnnotation(Named.class) != null) {
+                    String key = method.getAnnotation(Named.class).toString();
+                    if (!suppliedNamedAnnotationMap.containsKey(key)) {
+                        // resolve all arguments required by this method (checking for cyclic dependencies along the way)
+                        List<Object> args = resolveArgs(method.getParameters(), method.getParameterAnnotations(), seen, topLevel);
+                        // invoke the method with the resolved args
+                        Object o = invokeMethod(method, args, topLevel);
+                        if (o != null) {
+                            suppliedNamedAnnotationMap.put(key, o);
+                        }
+                    }
+                }
+                else if (!Novocaine.injectableProvider.containsKey(method.getReturnType())) {
+                    // resolve all arguments required by this method (checking for cyclic dependencies along the way)
+                    List<Object> args = resolveArgs(method.getParameters(), method.getParameterAnnotations(), seen, topLevel);
 
-                // invoke the method with the resolved args
-                Object o = invokeMethod(method, args, topLevel);
-                if (o != null) {
-                    Novocaine.injectableProvider.put(method.getReturnType(), o);
+                    // invoke the method with the resolved args
+                    Object o = invokeMethod(method, args, topLevel);
+                    if (o != null) {
+                        Novocaine.injectableProvider.put(method.getReturnType(), o);
+                    }
                 }
             }
         }
@@ -265,8 +307,13 @@ class NovocaineHelper {
         List<Object> args = new ArrayList<>();
         for (int i = 0; i < parameters.length; i++) {
             Parameter parameter = parameters[i];
-            Class<?> type = determineParameterType(parameter.getType(), parameterAnnotations[i]);
-            args.add(resolveArg(type, seen, topLevel));
+            if (parameter.getAnnotation(Named.class) != null && suppliedNamedAnnotationMap.containsKey(parameter.getAnnotation(Named.class).toString())) {
+                args.add(suppliedNamedAnnotationMap.get(parameter.getAnnotation(Named.class).toString()));
+            }
+            else {
+                Class<?> type = determineParameterType(parameter.getType(), parameterAnnotations[i]);
+                args.add(resolveArg(type, seen, topLevel));
+            }
         }
         return args;
     }
@@ -383,17 +430,28 @@ class NovocaineHelper {
      * @param topLevel - the top level class which called Novocaine.inject(this)
      */
     private static void setField(@Nonnull Field field, @Nonnull Class<?> type, @Nonnull Object topLevel) {
+        setField(field, Novocaine.injectableProvider.get(type), topLevel);
+    }
+
+    /**
+     * Sets the field marked with @Inject on its declaring class (or the top level class)
+     *
+     * @param field - the field to set
+     * @param o - the instantiated object to set for this field
+     * @param topLevel - the top level class which called Novocaine.inject(this)
+     */
+    private static void setField(@Nonnull Field field, @Nonnull Object o, @Nonnull Object topLevel) {
         if (!field.isAccessible()) {
             field.setAccessible(true);
         }
         try {
             Class<?> clazz = field.getDeclaringClass();
             if (clazz == topLevel.getClass()) {
-                field.set(topLevel, Novocaine.injectableProvider.get(type));
+                field.set(topLevel, o);
             }
             else {
                 instantiateClass(clazz);
-                field.set(Novocaine.injectableProvider.get(clazz), Novocaine.injectableProvider.get(type));
+                field.set(Novocaine.injectableProvider.get(clazz), o);
             }
         }
         catch (Exception e) {

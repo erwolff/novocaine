@@ -14,15 +14,17 @@ public class ConstructorInjectionService {
     private final Payment creditPayment;
     private final Payment cashPayment;
     private final Payment debitPayment;
+    private final ProviderService.ProvidedService providedService;
 
     /**
      * Constructor injection with qualifier and named annotations on params
      */
     @Inject
-    public ConstructorInjectionService(@CreditPayment Payment creditPayment, CashPaymentImpl cashPayment, @Named("debit") Payment debitPayment) {
+    public ConstructorInjectionService(@CreditPayment Payment creditPayment, CashPaymentImpl cashPayment, @Named("debit") Payment debitPayment, @Named("firstNamedProvidedService")ProviderService.ProvidedService providedService) {
         this.creditPayment = creditPayment;
         this.cashPayment = cashPayment;
         this.debitPayment = debitPayment;
+        this.providedService = providedService;
     }
 
     public Payment getCreditPayment() {
@@ -35,5 +37,9 @@ public class ConstructorInjectionService {
 
     public Payment getDebitPayment() {
         return debitPayment;
+    }
+
+    public ProviderService.ProvidedService getProvidedService() {
+        return providedService;
     }
 }

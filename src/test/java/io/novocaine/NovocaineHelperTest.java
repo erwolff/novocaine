@@ -95,6 +95,14 @@ public class NovocaineHelperTest {
         assertNotNull(constructorInjectionService.getDebitPayment());
     }
 
+    @Test
+    public void test_constructorInjection_named_provided() {
+        ConstructorInjectionService constructorInjectionService = Novocaine.get(ConstructorInjectionService.class);
+        assertNotNull(constructorInjectionService);
+        assertNotNull(constructorInjectionService.getProvidedService());
+        assertEquals("firstNamedProvidedService", constructorInjectionService.getProvidedService().getName());
+    }
+
     /**
      * Method Injection Tests
      */
@@ -134,12 +142,38 @@ public class NovocaineHelperTest {
     }
 
     @Test
+    public void test_methodInjection_namedOnParam_provided() {
+        MethodInjectionService methodInjectionService = Novocaine.get(MethodInjectionService.class);
+        assertNotNull(methodInjectionService);
+        assertNotNull(methodInjectionService.getFirstProvidedService());
+        assertEquals("firstNamedProvidedService", methodInjectionService.getFirstProvidedService().getName());
+    }
+
+    @Test
+    public void test_methodInjection_namedOnMethod_provided() {
+        MethodInjectionService methodInjectionService = Novocaine.get(MethodInjectionService.class);
+        assertNotNull(methodInjectionService);
+        assertNotNull(methodInjectionService.getSecondProvidedService());
+        assertEquals("secondNamedProvidedService", methodInjectionService.getSecondProvidedService().getName());
+    }
+
+    @Test
     public void test_methodSingletonInstantiation() {
         UserOfProviderService userOfProviderService = Novocaine.get(UserOfProviderService.class);
         assertNotNull(userOfProviderService);
         assertNotNull(userOfProviderService.getProviderService());
         assertNotNull(userOfProviderService.getSecondProvidedService());
         assertNotNull(userOfProviderService.getSecondProvidedService().getProvidedService());
+    }
+
+    @Test
+    public void test_methodSingletonInstantiation_named() {
+        UserOfProviderService userOfProviderService = Novocaine.get(UserOfProviderService.class);
+        assertNotNull(userOfProviderService);
+        assertNotNull(userOfProviderService.getFirstNamedProvidedService());
+        assertEquals("firstNamedProvidedService", userOfProviderService.getFirstNamedProvidedService().getName());
+        assertNotNull(userOfProviderService.getSecondNamedProvidedService());
+        assertEquals("secondNamedProvidedService", userOfProviderService.getSecondNamedProvidedService().getName());
     }
 
 

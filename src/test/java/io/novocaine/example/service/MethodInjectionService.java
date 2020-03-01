@@ -16,6 +16,8 @@ public class MethodInjectionService {
     private Payment secondCreditPayment;
     private Payment debitPayment;
     private Payment secondDebitPayment;
+    private ProviderService.ProvidedService firstProvidedService;
+    private ProviderService.ProvidedService secondProvidedService;
 
     /**
      * Method injection with concrete class type as param
@@ -59,6 +61,23 @@ public class MethodInjectionService {
         this.secondDebitPayment = secondDebitPayment;
     }
 
+    /**
+     * Method injection with provided named annotation on param
+     */
+    @Inject
+    public void setFirstProvidedService(@Named("firstNamedProvidedService") ProviderService.ProvidedService firstProvidedService) {
+        this.firstProvidedService = firstProvidedService;
+    }
+
+    /**
+     * Method injection with provided named annotation on method
+     */
+    @Inject
+    @Named("secondNamedProvidedService")
+    public void setSecondProvidedService(ProviderService.ProvidedService secondProvidedService) {
+        this.secondProvidedService = secondProvidedService;
+    }
+
     public CashPaymentImpl getCashPayment() {
         return cashPayment;
     }
@@ -77,5 +96,13 @@ public class MethodInjectionService {
 
     public Payment getSecondDebitPayment() {
         return secondDebitPayment;
+    }
+
+    public ProviderService.ProvidedService getFirstProvidedService() {
+        return firstProvidedService;
+    }
+
+    public ProviderService.ProvidedService getSecondProvidedService() {
+        return secondProvidedService;
     }
 }
