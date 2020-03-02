@@ -176,6 +176,14 @@ public class NovocaineHelperTest {
         assertEquals("secondNamedProvidedService", userOfProviderService.getSecondNamedProvidedService().getName());
     }
 
+    @Test
+    public void test_subClasses() {
+        MySubClass subClass = Novocaine.get(MySubClass.class);
+        assertNotNull(subClass);
+        assertNotNull(subClass.getLowLevelService());
+        assertNotNull(subClass.getDebitPayment());
+    }
+
 
     /**
      * Recursive Injection Tests

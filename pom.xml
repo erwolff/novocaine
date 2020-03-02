@@ -6,7 +6,7 @@
 
     <groupId>io.novocaine</groupId>
     <artifactId>novocaine</artifactId>
-    <version>0.0.3</version>
+    <version>0.0.4</version>
 
     <distributionManagement>
         <repository>
@@ -22,6 +22,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <inject.version>1</inject.version>
         <reflections.version>0.9.12</reflections.version>
+        <apache.commons.version>3.9</apache.commons.version>
         <findbugs.version>3.0.2</findbugs.version>
         <junit.version>4.13</junit.version>
 
@@ -40,6 +41,13 @@
             <artifactId>reflections</artifactId>
             <version>${reflections.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>${apache.commons.version}</version>
+        </dependency>
+
 
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
