@@ -192,6 +192,10 @@ class NovocaineHelper {
      * @param topLevel - the top level class which called Novocaine.inject(this)
      */
     private static void handleConstructorInjection(@Nonnull Class<?> clazz, @Nonnull Set<Class<?>> seen, @Nonnull Object topLevel) {
+        // check if we've already instantiated this class
+        if (Novocaine.injectableProvider.containsKey(clazz)) {
+            return;
+        }
         // iterate over each constructor in this class
         for (Constructor constructor : clazz.getConstructors()) {
             // check if this constructor is marked with @Inject
