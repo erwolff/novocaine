@@ -24,7 +24,7 @@
         <reflections.version>0.9.12</reflections.version>
         <apache.commons.version>3.9</apache.commons.version>
         <findbugs.version>3.0.2</findbugs.version>
-        <junit.version>4.13</junit.version>
+        <junit.version>4.13.1</junit.version>
 
     </properties>
 
